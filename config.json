@@ -1,0 +1,48 @@
+{
+  "ldplayer_path": "C:\\LDPlayer\\LDPlayer9",
+  "adb_path": "C:\\LDPlayer\\LDPlayer9\\adb.exe",
+  "resolution": { "width": 1280, "height": 720 },
+
+  "instance_groups": [
+    { "master": 0, "slaves": [2, 3] },
+    { "master": 1, "slaves": [4, 5] }
+  ],
+
+  "match_count": 4,
+  "match_timer_seconds": 180,
+  "feature_toggle_wait": 10,
+
+  "ocr": {
+    "room_id_region": { "x": 400, "y": 200, "w": 300, "h": 50 },
+    "tesseract_config": "--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789",
+    "preprocessing": {
+      "grayscale": true,
+      "threshold_value": 150,
+      "threshold_max": 255,
+      "resize_scale": 3
+    }
+  },
+
+  "template_confidence": 0.8,
+  "poll_interval_seconds": 1.0,
+
+  "timeouts": {
+    "default": 30,
+    "match_load": 120,
+    "match_end": 600,
+    "room_create": 30,
+    "room_join": 20,
+    "hero_select": 15,
+    "ready_button": 15,
+    "reward_claim": 10,
+    "shop_navigation": 15
+  },
+
+  "recovery": {
+    "max_retries": 3,
+    "popup_dismiss_templates": ["close_popup.png"],
+    "dismiss_tap_fallback": { "x": 640, "y": 600 }
+  },
+
+  "game_package": "com.garena.game.kgvn"
+}
