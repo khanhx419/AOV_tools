@@ -10,6 +10,9 @@ automation workflow:
 Fix #1: Group-aware orchestration via instance_groups config.
 Fix #3: Per-group sync primitives (room_id, toggle_signal).
 Fix #5: Error boundaries around each phase.
+
+QoL Fix #3: Auto-creates templates/ directory on startup.
+QoL Fix #3: Calls 'adb start-server' before constructing any AdbController.
 """
 
 import json
@@ -261,6 +264,27 @@ def main():
     except FileNotFoundError as e:
         logger.critical(f"LDPlayer not found: {e}")
         sys.exit(1)
+
+    # -----------------------------------------------------------------------
+    # QoL Fix #3 — Auto-Initialization
+    # -----------------------------------------------------------------------
+
+    # 3a. Ensure the templates/ directory exists so the script never crashes
+    #     with a FileNotFoundError when ImageMatcher tries to load templates.
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    os.makedirs(templates_dir, exist_ok=True)
+    logger.info(f"Templates directory ensured: {templates_dir}")
+
+    # 3b. Start the ADB server ONCE before any worker creates an AdbController.
+    #     This guarantees the ADB bridge is alive for all subsequent connects.
+    logger.info("Starting ADB server ...")
+    try:
+        AdbController.start_server(config["adb_path"])
+    except (FileNotFoundError, Exception) as e:
+        logger.critical(f"Failed to start ADB server: {e}")
+        sys.exit(1)
+
+    # -----------------------------------------------------------------------
 
     # Validate all instances are running
     try:

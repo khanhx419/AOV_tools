@@ -3,6 +3,10 @@ ADB Controller — Wraps ADB commands for a specific LDPlayer instance.
 
 Each instance is addressed by its ADB serial (e.g. '127.0.0.1:5555').
 Provides screen capture, tap, swipe, text input, and key event operations.
+
+Fix #3 (QoL): Added AdbController.start_server(adb_path) class method that
+runs 'adb start-server' once at startup so the ADB bridge is guaranteed to
+be active before any worker attempts a connection.
 """
 
 import io
@@ -17,6 +21,51 @@ logger = logging.getLogger(__name__)
 
 class AdbController:
     """Manages ADB interactions with a single emulator instance."""
+
+    # -----------------------------------------------------------------------
+    # Class-level helpers
+    # -----------------------------------------------------------------------
+
+    @staticmethod
+    def start_server(adb_path: str):
+        """
+        Start the ADB server daemon.
+
+        Should be called ONCE at application start, before any AdbController
+        instances are constructed, to ensure the ADB bridge is active.
+
+        Args:
+            adb_path: Absolute path to the adb executable (from config).
+        """
+        _log = logging.getLogger(__name__)
+        try:
+            result = subprocess.run(
+                [adb_path, "start-server"],
+                capture_output=True,
+                timeout=15,
+            )
+            stdout = result.stdout.decode("utf-8", errors="replace").strip()
+            stderr = result.stderr.decode("utf-8", errors="replace").strip()
+            if result.returncode == 0:
+                _log.info(f"ADB server started successfully. {stdout or '(no output)'}")
+            else:
+                _log.warning(
+                    f"adb start-server returned non-zero exit code "
+                    f"{result.returncode}: {stderr}"
+                )
+        except FileNotFoundError:
+            _log.critical(
+                f"adb executable not found at '{adb_path}'. "
+                "Please verify 'adb_path' in config.json."
+            )
+            raise
+        except subprocess.TimeoutExpired:
+            _log.error("adb start-server timed out after 15 seconds.")
+            raise
+
+    # -----------------------------------------------------------------------
+    # Instance lifecycle
+    # -----------------------------------------------------------------------
 
     def __init__(self, serial: str, config: dict):
         """

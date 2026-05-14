@@ -1,8 +1,13 @@
 """
 OCR Reader — Tesseract OCR with preprocessing pipeline for game fonts.
 
-Fix #2: Grayscale → Upscale → Binary threshold pipeline + digit-only whitelist
-for accurate Room ID extraction from game screenshots with shadows/strokes.
+Fix #2 (original): Grayscale → Upscale → Binary threshold pipeline + digit-only
+whitelist for accurate Room ID extraction from game screenshots.
+
+Fix #2 (QoL update): room_id_region now supports ratio-based coordinates
+(x_ratio, y_ratio, w_ratio, h_ratio) that are resolved automatically against
+the emulator resolution defined in config["resolution"]. Absolute pixel keys
+(x, y, w, h) remain supported for backwards compatibility.
 """
 
 import logging
@@ -21,7 +26,41 @@ class OcrReader:
     def __init__(self, config: dict):
         self.tesseract_config = config["ocr"]["tesseract_config"]
         self.preprocess_cfg = config["ocr"]["preprocessing"]
-        self.room_id_region = config["ocr"]["room_id_region"]
+
+        raw_region = config["ocr"]["room_id_region"]
+        resolution = config.get("resolution", {"width": 1280, "height": 720})
+        self.room_id_region = self._resolve_region(raw_region, resolution)
+
+    @staticmethod
+    def _resolve_region(region: dict, resolution: dict) -> dict:
+        """
+        Convert a region definition to absolute pixel coordinates.
+
+        Supports two formats:
+          - Ratio-based: {x_ratio, y_ratio, w_ratio, h_ratio}  ← preferred
+          - Absolute:    {x, y, w, h}                          ← legacy
+
+        Returns:
+            Dict with integer keys x, y, w, h.
+        """
+        W = resolution.get("width", 1280)
+        H = resolution.get("height", 720)
+
+        if "x_ratio" in region:
+            return {
+                "x": int(region["x_ratio"] * W),
+                "y": int(region["y_ratio"] * H),
+                "w": int(region["w_ratio"] * W),
+                "h": int(region["h_ratio"] * H),
+            }
+
+        # Fallback: legacy absolute coordinates
+        return {
+            "x": region["x"],
+            "y": region["y"],
+            "w": region["w"],
+            "h": region["h"],
+        }
 
     def preprocess_image(self, image: Image.Image) -> Image.Image:
         """
